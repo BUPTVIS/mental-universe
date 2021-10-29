@@ -1,11 +1,11 @@
 <template>
   <div id="app">
     <!-- <img alt="Vue logo" src="./assets/logo.png"> -->
-    <h1>The Universe of Mental Health in Tech Company</h1>
+    <h1 class="title">The Universe of Mental Health in Tech Company</h1>
     <!-- <Nav/>
     <Lengend/>
     <Detail/> -->
-    <Overview :loadData="loadData"/>
+    <Overview v-if="loadData"/>
   </div>
 </template>
 
@@ -36,6 +36,11 @@ export default {
 
 <style lang="less">
 #app {
+  .title {
+    z-index: 100;
+    color: red;
+  }
+
   img {
     width: 500px;
     height: 500px;
