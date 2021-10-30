@@ -1,5 +1,5 @@
 /**
- * 全局缓存
+ * 全局 store
  */
  class Store {
   constructor() {
