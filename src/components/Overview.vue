@@ -22,51 +22,182 @@ export default {
   }),
   methods: {
     setup(sk) {
-      // 处理数据
-      this.srcData = store.get('allData')
+      // 筛选概览图相关维度
+      const allData = store.get('allData')  // 获取全局缓存中的数据
 
-      const leftsideWidth = 100, rightsideWidth = 200
-
-      const xScale = scaleLinear()
-      .domain([Math.min(...this.srcData.map(item => item.x)), Math.max(...this.srcData.map(item => item.x))])
-      .range([leftsideWidth, sk.windowWidth - rightsideWidth])
-
-      const yScale = scaleLinear()
-      .domain([Math.min(...this.srcData.map(item => item.y)), Math.max(...this.srcData.map(item => item.y))])
-      .range([0, sk.windowHeight])
-
-      this.processedData = this.srcData.map((item, index) => ({
-        // TODO: 大小写统一
-        'id': index,
-        'self-employed': item['Are you self-employed?'],
-        'IT-company': item['Is your employer primarily a tech company/organization?'],
-        'pre-employers': item['Do you have previous employers?'],
-        'Tech-role': item['Is your primary role within your company related to tech/IT?'],
-        'x': xScale(item.x),
-        'y': yScale(item.y),
-        // 'ox': 0,
-        // 'oy': 0,
-        'condition': item['If so, what condition(s) were you diagnosed with?'].split('|'),
-        'view': item['Do you think that team members/co-workers would view you more negatively if they knew you suffered from a mental health issue?']
+      this.$filteredData = allData.map((d, i) => ({
+        // TODO: 没用的维度
+        'index': i,
+        'conditions': d['If so, what condition(s) were you diagnosed with?'].split('|'),
+        'tech-company': d['Is your employer primarily a tech company/organization?'],
+        'tech-role': d['Is your primary role within your company related to tech/IT?'],
+        'employed-before': d['Do you have previous employers?'],
+        'self-employed': d['Are you self-employed?'],
+        'viewed-negative': d['Do you think that team members/co-workers would view you more negatively if they knew you suffered from a mental health issue?'],
+        'x': d['x'],
+        'y': d['y'],
       }))
 
-      console.log("===", this.processedData)
-    },
+      // 画布左右边距
+      const margin = {
+        top: 50,
+        right: 200,
+        bottom: 50,
+        left: 100
+      }
 
-    draw(sk) {
+      // 坐标比例尺
+      const xScale = scaleLinear()
+        .domain([Math.min(...this.$filteredData.map(d => d.x)), Math.max(...this.$filteredData.map(d => d.x))])
+        .range([margin.left, sk.windowWidth - margin.right])
+
+      const yScale = scaleLinear()
+        .domain([Math.min(...this.$filteredData.map(d => d.y)), Math.max(...this.$filteredData.map(d => d.y))])
+        .range([margin.top, sk.windowHeight - margin.bottom])
+
+      // 生成星球数据
+      this.$planets = []
+      for (let i = 0; i < this.$filteredData.length; i++) {
+        const datum = this.$filteredData[i]
+        this.$planets[i] = new this.Planet(datum, xScale, yScale)
+      }
+      console.log(">>>", this.$planets)
+
+      // 初次渲染
       sk.createCanvas(sk.windowWidth, sk.windowHeight)
       sk.background(0)
 
-      for (let i = 0; i < this.processedData.length; i++) {
-        this.planet(sk, this.processedData[i])
+      for (let i = 0; i < this.$planets.length; i++) {
+        this.display(sk, this.$planets[i])
       }
     },
 
-    planet(sk, o) {
-      sk.push()
-      sk.fill(255,0,0)
-      sk.ellipse(o.x, o.y, 2, 2)
-      sk.pop()
+    draw() {
+      // TODO: 更新sin 每帧渲染
+    },
+
+    Planet(datum, xScale, yScale) {
+      // 星球中心
+      this.coordinateX = xScale(datum.x)
+      this.coordinateY = yScale(datum.y)
+
+      // 疾病数量
+      this.conditionsLength = datum.conditions.length
+
+      // 小圆明度
+      this.brightness = 70 + 6 * this.conditionsLength
+
+      // 小圆半径
+      this.circleRadius = 2 * datum.conditions.length
+
+      // 计算小圆的位置和颜色
+      this.circles = datum.conditions.map((condition, index) => {
+        let circle = {}
+
+        // 小圆半径和数量决定偏移量
+        // 一种病 无偏移
+        if (this.conditionsLength == 1) {
+          circle.offsetX = 0
+          circle.offsetY = 0
+        } else {  // 两种及以上 需要偏移
+          const offset = this.circleRadius / 3  // 偏移距离
+          circle.offsetX = offset * Math.sin(index * 2 * Math.PI / this.conditionsLength)
+          circle.offsetY = offset * (- Math.cos(index * 2 * Math.PI / this.conditionsLength))
+        }
+
+        // 疾病种类决定小圆颜色
+        switch(condition) {
+          case 'Mood Disorder (Depression, Bipolar Disorder, etc)':
+            circle.color = [354.24, 354.24, this.brightness]
+            break
+          case 'Anxiety Disorder (Generalized, Social, Phobia, etc)':
+            circle.color = [285.47, 78.84, this.brightness]
+            break
+          case 'Attention Deficit Hyperactivity Disorder':
+            circle.color = [253.71, 80.41, this.brightness]
+            break
+          case 'Post-traumatic Stress Disorder':
+            circle.color = [230.61, 73.06, this.brightness]
+            break
+          case 'Obsessive-Compulsive Disorder':
+            circle.color = [220.66, 74.09, this.brightness]
+            break
+          case 'Substance Use Disorder':
+            circle.color = [190.54, 58.73, this.brightness]
+            break
+          case 'Personality Disorder (Borderline, Antisocial, Paranoid, etc)':
+            circle.color = [157.82, 51.97, this.brightness]
+            break
+          case 'Stress Response Syndromes':
+            circle.color = [132.4, 53.54, this.brightness]
+            break
+          case 'Addictive Disorder':
+            circle.color = [93.29, 68.92, this.brightness]
+            break
+          case 'Eating Disorder (Anorexia, Bulimia, etc)':
+            circle.color = [53.76, 68.65, this.brightness]
+            break
+          case 'Dissociative Disorder':
+            circle.color = [30.65, 77.18, this.brightness]
+            break
+          case 'Psychotic Disorder (Schizophrenia, Schizoaffective, etc)':
+            circle.color = [12.24, 83.4, this.brightness]
+            break
+          // TODO: 其他疾病和没病都是白色 ?
+          default:
+            circle.color = [0, 0, this.brightness]
+            break
+        }
+        
+        return circle
+      })
+
+      // 闪烁 or 有星环 ?
+      if (datum['viewed-negative'].substr(0,2) == 'No') {
+        const OARBIT = 'orbit'
+        this.stability = OARBIT
+        if (datum['viewed-negative'] == 'No, they do not') {
+          this.orbit = 25
+        } else if (datum['viewed-negative'] == 'No, I don\'t think they would') {
+          this.orbit = 8
+        }
+      } else {
+        const FLICK = 'flick'
+        this.stability = FLICK
+        if (datum['viewed-negative'] == 'Yes, they do') {
+          this.flick = 10
+        } else if (datum['viewed-negative'] == 'Yes, I think they would') {
+          this.flick = 4
+        } else if (datum['viewed-negative'] == 'Maybe') {
+          this.flick = 2
+        }
+      }
+    },
+    // 传入sin值
+    display(sk, planet) {
+      if (!planet.circles.length) {  // 没病 画菱形
+        sk.push()
+        sk.rotate(sk.PI / 4)
+        sk.fill(255)
+        sk.rect(planet.coordinateX, planet.coordinateY, planet.circleRadius)
+        sk.pop()
+      } else {  // 有病 画圆形
+        for (let i = 0; i < planet.circles.length; i++) {
+          const color = planet.circles[i].color
+          const x = planet.coordinateX
+          const y = planet.coordinateY
+          const offsetX = planet.circles[i].offsetX
+          const offsetY = planet.circles[i].offsetY
+
+          sk.push()
+          sk.colorMode(sk.HSB, 360, 100, 100, 100)  // 色相 饱和度 明度 透明度
+          sk.blendMode(sk.LIGHTEST)
+          sk.fill(...color)
+          // TODO: 半径 * sin
+          sk.ellipse(x + offsetX, y + offsetY, planet.circleRadius, planet.circleRadius)
+          sk.pop()
+        }
+      }
     }
   }
 }
@@ -74,7 +205,6 @@ export default {
 
 <style scoped>
 .overview {
-  /* display: none; */
   position: absolute;
   top: 0;
   right: 0;
