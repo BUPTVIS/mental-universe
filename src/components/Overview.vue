@@ -39,21 +39,25 @@ export default {
       }))
 
       // 画布左右边距
-      const margin = {
+      /* const margin = {
         top: 50,
         right: 200,
         bottom: 50,
         left: 100
-      }
+      } */
 
       // 坐标比例尺
       const xScale = scaleLinear()
-        .domain([Math.min(...this.$filteredData.map(d => d.x)), Math.max(...this.$filteredData.map(d => d.x))])
-        .range([margin.left, sk.windowWidth - margin.right])
+        // .domain([Math.min(...this.$filteredData.map(d => d.x)), Math.max(...this.$filteredData.map(d => d.x))])
+        // .range([margin.left, sk.windowWidth - margin.right])
+        .domain([-80, 80])
+        .range([0, sk.windowWidth])
 
       const yScale = scaleLinear()
-        .domain([Math.min(...this.$filteredData.map(d => d.y)), Math.max(...this.$filteredData.map(d => d.y))])
-        .range([margin.top, sk.windowHeight - margin.bottom])
+        // .domain([Math.min(...this.$filteredData.map(d => d.y)), Math.max(...this.$filteredData.map(d => d.y))])
+        // .range([margin.top, sk.windowHeight - margin.bottom])
+        .domain([-40, 40])
+        .range([0, sk.windowHeight])
 
       // 生成星球数据
       this.$planets = []
@@ -61,21 +65,28 @@ export default {
         const datum = this.$filteredData[i]
         this.$planets[i] = new this.Planet(datum, xScale, yScale)
       }
-      console.log(">>>", this.$planets)
+      // console.log(">>>", this.$planets)
 
       // 初次渲染
+      // sk.createCanvas(sk.windowWidth, sk.windowHeight)
+      // sk.background(0)
+
+      // for (let i = 0; i < this.$planets.length; i++) {
+      //   this.display(sk, this.$planets[i])
+      // }
+    },
+
+    draw(sk) {
       sk.createCanvas(sk.windowWidth, sk.windowHeight)
       sk.background(0)
 
+      const t = sk.millis() / 1000  // t是从开始到现在的毫秒数/1000
+
       for (let i = 0; i < this.$planets.length; i++) {
-        this.display(sk, this.$planets[i])
+        this.display(sk, this.$planets[i], t, i)
       }
     },
-
-    draw() {
-      // TODO: 更新sin 每帧渲染
-    },
-
+    // TODO: 提炼到一个class里
     Planet(datum, xScale, yScale) {
       // 星球中心
       this.coordinateX = xScale(datum.x)
@@ -88,70 +99,71 @@ export default {
       this.brightness = 70 + 6 * this.conditionsLength
 
       // 小圆半径
-      this.circleRadius = 2 * datum.conditions.length
+      this.circleRadius = datum.conditions.length
 
       // 计算小圆的位置和颜色
-      this.circles = datum.conditions.map((condition, index) => {
-        let circle = {}
+      if (datum.conditions != '') {
+        this.circles = datum.conditions.map((condition, index) => {
+          let circle = {}
 
-        // 小圆半径和数量决定偏移量
-        // 一种病 无偏移
-        if (this.conditionsLength == 1) {
-          circle.offsetX = 0
-          circle.offsetY = 0
-        } else {  // 两种及以上 需要偏移
-          const offset = this.circleRadius / 3  // 偏移距离
-          circle.offsetX = offset * Math.sin(index * 2 * Math.PI / this.conditionsLength)
-          circle.offsetY = offset * (- Math.cos(index * 2 * Math.PI / this.conditionsLength))
-        }
+          // 小圆半径和数量决定偏移量
+          // 一种病 无偏移
+          if (this.conditionsLength == 1) {
+            circle.offsetRadioX = 0
+            circle.offsetRadioY = 0
+          } else {  // 两种及以上 需要偏移 小圆顺序: 12点开始顺时针
+            // 偏移系数
+            circle.offsetRadioX = Math.sin(index * 2 * Math.PI / this.conditionsLength)
+            circle.offsetRadioY = - Math.cos(index * 2 * Math.PI / this.conditionsLength)
+          }
 
-        // 疾病种类决定小圆颜色
-        switch(condition) {
-          case 'Mood Disorder (Depression, Bipolar Disorder, etc)':
-            circle.color = [354.24, 354.24, this.brightness]
-            break
-          case 'Anxiety Disorder (Generalized, Social, Phobia, etc)':
-            circle.color = [285.47, 78.84, this.brightness]
-            break
-          case 'Attention Deficit Hyperactivity Disorder':
-            circle.color = [253.71, 80.41, this.brightness]
-            break
-          case 'Post-traumatic Stress Disorder':
-            circle.color = [230.61, 73.06, this.brightness]
-            break
-          case 'Obsessive-Compulsive Disorder':
-            circle.color = [220.66, 74.09, this.brightness]
-            break
-          case 'Substance Use Disorder':
-            circle.color = [190.54, 58.73, this.brightness]
-            break
-          case 'Personality Disorder (Borderline, Antisocial, Paranoid, etc)':
-            circle.color = [157.82, 51.97, this.brightness]
-            break
-          case 'Stress Response Syndromes':
-            circle.color = [132.4, 53.54, this.brightness]
-            break
-          case 'Addictive Disorder':
-            circle.color = [93.29, 68.92, this.brightness]
-            break
-          case 'Eating Disorder (Anorexia, Bulimia, etc)':
-            circle.color = [53.76, 68.65, this.brightness]
-            break
-          case 'Dissociative Disorder':
-            circle.color = [30.65, 77.18, this.brightness]
-            break
-          case 'Psychotic Disorder (Schizophrenia, Schizoaffective, etc)':
-            circle.color = [12.24, 83.4, this.brightness]
-            break
-          // TODO: 其他疾病和没病都是白色 ?
-          default:
-            circle.color = [0, 0, this.brightness]
-            break
-        }
-        
-        return circle
-      })
-
+          // 疾病种类决定小圆颜色
+          switch(condition) {
+            case 'Mood Disorder (Depression, Bipolar Disorder, etc)':
+              circle.color = [354.24, 354.24, this.brightness]
+              break
+            case 'Anxiety Disorder (Generalized, Social, Phobia, etc)':
+              circle.color = [285.47, 78.84, this.brightness]
+              break
+            case 'Attention Deficit Hyperactivity Disorder':
+              circle.color = [253.71, 80.41, this.brightness]
+              break
+            case 'Post-traumatic Stress Disorder':
+              circle.color = [230.61, 73.06, this.brightness]
+              break
+            case 'Obsessive-Compulsive Disorder':
+              circle.color = [220.66, 74.09, this.brightness]
+              break
+            case 'Substance Use Disorder':
+              circle.color = [190.54, 58.73, this.brightness]
+              break
+            case 'Personality Disorder (Borderline, Antisocial, Paranoid, etc)':
+              circle.color = [157.82, 51.97, this.brightness]
+              break
+            case 'Stress Response Syndromes':
+              circle.color = [132.4, 53.54, this.brightness]
+              break
+            case 'Addictive Disorder':
+              circle.color = [93.29, 68.92, this.brightness]
+              break
+            case 'Eating Disorder (Anorexia, Bulimia, etc)':
+              circle.color = [53.76, 68.65, this.brightness]
+              break
+            case 'Dissociative Disorder':
+              circle.color = [30.65, 77.18, this.brightness]
+              break
+            case 'Psychotic Disorder (Schizophrenia, Schizoaffective, etc)':
+              circle.color = [12.24, 83.4, this.brightness]
+              break
+            default:
+              circle.color = [0, 0, this.brightness]  // 其他类型的疾病是白色
+              break
+          }
+          
+          return circle
+        })
+      }
+      
       // 闪烁 or 有星环 ?
       if (datum['viewed-negative'].substr(0,2) == 'No') {
         const OARBIT = 'orbit'
@@ -173,30 +185,52 @@ export default {
         }
       }
     },
-    // 传入sin值
-    display(sk, planet) {
-      if (!planet.circles.length) {  // 没病 画菱形
+
+    display(sk, planet, t, planetIndex) {
+      if (!planet.circles) {  // 没病 画菱形
+        const DIAMOND_RADIUS = 2.5
+        const radius = planet.flick
+          ? DIAMOND_RADIUS * Math.abs(Math.sin(planet.flick * t + 0.1 * planetIndex))  // t 时间变量; i 不让所有星球一起闪
+          : DIAMOND_RADIUS
+        
         sk.push()
-        sk.rotate(sk.PI / 4)
+        sk.rectMode(sk.CENTER) // TODO: 什么作用?
+        sk.translate(planet.coordinateX, planet.coordinateY)
+        sk.rotate(Math.PI / 4)
         sk.fill(255)
-        sk.rect(planet.coordinateX, planet.coordinateY, planet.circleRadius)
+        sk.rect(0, 0, radius, radius)
         sk.pop()
       } else {  // 有病 画圆形
         for (let i = 0; i < planet.circles.length; i++) {
+          const radius = planet.flick
+            ? planet.circleRadius * Math.abs(Math.sin(planet.flick * t + 0.1 * planetIndex))  // t 时间变量; i 不让所有星球一起闪
+            : planet.circleRadius
           const color = planet.circles[i].color
           const x = planet.coordinateX
           const y = planet.coordinateY
-          const offsetX = planet.circles[i].offsetX
-          const offsetY = planet.circles[i].offsetY
+          const offsetX = planet.circles[i].offsetRadioX * (radius / 3)
+          const offsetY = planet.circles[i].offsetRadioY * (radius / 3)
 
           sk.push()
           sk.colorMode(sk.HSB, 360, 100, 100, 100)  // 色相 饱和度 明度 透明度
           sk.blendMode(sk.LIGHTEST)
           sk.fill(...color)
-          // TODO: 半径 * sin
-          sk.ellipse(x + offsetX, y + offsetY, planet.circleRadius, planet.circleRadius)
+          sk.ellipse(x + offsetX, y + offsetY, radius, radius)
           sk.pop()
         }
+      }
+
+      // 画星环
+      if (planet.orbit) {
+        const ORBIT_WIDTH = 0.1
+        const radius = planet.orbit
+
+        sk.push()
+        sk.stroke(255)
+        sk.strokeWeight(ORBIT_WIDTH)
+        sk.noFill()
+        sk.ellipse(planet.coordinateX, planet.coordinateY, radius, radius)
+        sk.pop()
       }
     }
   }
@@ -205,10 +239,5 @@ export default {
 
 <style scoped>
 .overview {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
 }
 </style>
